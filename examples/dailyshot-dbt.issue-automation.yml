@@ -1,0 +1,91 @@
+runtime:
+  dir: .github/ai/runtime
+  issue_context_file: issue-context.md
+  runner_result_file: runner-result.json
+
+kind_rules:
+  - value: bug
+    patterns:
+      - "오류"
+      - "실패"
+      - "에러"
+      - "\\bbug\\b"
+      - "\\bfailed\\b"
+  - value: feature
+    patterns:
+      - "모델 추가"
+      - "컬럼 추가"
+      - "지표 추가"
+      - "개선"
+      - "요청"
+  - value: question
+    patterns:
+      - "질문"
+      - "확인"
+      - "궁금"
+
+default_kind: task
+
+area_rules:
+  - value: model
+    patterns:
+      - "\\bmodel\\b"
+      - "모델"
+      - "curated"
+      - "mart"
+  - value: source
+    patterns:
+      - "\\bsource\\b"
+      - "원천"
+      - "schema"
+      - "table"
+  - value: metric
+    patterns:
+      - "metric"
+      - "지표"
+      - "kpi"
+  - value: docs
+    patterns:
+      - "docs"
+      - "readme"
+      - "문서"
+
+maintainer_patterns:
+  - "보안"
+  - "권한"
+  - "credential"
+  - "token"
+  - "정책"
+  - "결정"
+
+dependencies:
+  - key: cli
+    owner: dailyshot-dev
+    repo: dailyshot-cli
+    marker: "<!-- dailyshot-cli-sub-issue -->"
+    auto_create: false
+    patterns:
+      - "dailyshot-cli"
+      - "manifest"
+      - "json contract"
+      - "capabilities"
+    body_notes:
+      - "DBT 변경이 CLI manifest 또는 JSON contract 변경을 요구하는 경우 이 issue에서 처리합니다."
+      - "DBT repository 변경만 필요한 경우 parent issue에서 처리합니다."
+
+  - key: infra
+    owner: dailyshot-dev
+    repo: aws-infra
+    marker: "<!-- aws-infra-sub-issue -->"
+    auto_create: true
+    patterns:
+      - "aws-infra"
+      - "glue"
+      - "athena"
+      - "iam"
+      - "s3"
+      - "permission"
+      - "권한"
+    body_notes:
+      - "AWS Glue, Athena, IAM, S3 같은 infrastructure 변경이 필요한 경우 이 issue에서 처리합니다."
+      - "DBT repository 변경만 필요한 경우 parent issue에서 처리합니다."

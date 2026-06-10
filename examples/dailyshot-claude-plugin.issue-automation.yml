@@ -1,0 +1,118 @@
+runtime:
+  dir: .github/ai/runtime
+  issue_context_file: issue-context.md
+  runner_result_file: runner-result.json
+
+kind_rules:
+  - value: bug
+    patterns:
+      - "\\bbug\\b"
+      - "오류"
+      - "실패"
+      - "에러"
+      - "exception"
+      - "table_not_found"
+      - "aws_api_error"
+  - value: feature
+    patterns:
+      - "기능"
+      - "개선"
+      - "제안"
+      - "\\bfeature\\b"
+  - value: question
+    patterns:
+      - "질문"
+      - "확인"
+      - "궁금"
+
+default_kind: task
+
+area_rules:
+  - value: data
+    patterns:
+      - "\\bdata\\b"
+      - "\\bschema\\b"
+      - "\\btable\\b"
+      - "athena"
+      - "glue"
+      - "데이터"
+      - "테이블"
+  - value: install-auth
+    patterns:
+      - "\\binstall\\b"
+      - "\\bupdate\\b"
+      - "\\bauth\\b"
+      - "인증"
+      - "설치"
+  - value: command
+    patterns:
+      - "\\bcommand\\b"
+      - "\\bslash\\b"
+      - "\\bhelp\\b"
+      - "커맨드"
+      - "명령"
+  - value: issue-flow
+    patterns:
+      - "\\bissue[- ]?(flow|status|report)\\b"
+      - "제보"
+  - value: docs
+    patterns:
+      - "\\breadme\\b"
+      - "\\bdocs\\b"
+      - "문서"
+
+maintainer_patterns:
+  - "보안"
+  - "권한"
+  - "credential"
+  - "token"
+  - "saml"
+  - "정책"
+  - "결정"
+
+dependencies:
+  - key: cli
+    owner: dailyshot-dev
+    repo: dailyshot-cli
+    marker: "<!-- dailyshot-cli-sub-issue -->"
+    auto_create: false
+    patterns:
+      - "dailyshot-cli"
+      - "cli manifest"
+      - "manifest"
+      - "json contract"
+      - "capabilities"
+      - "dailyshot update"
+      - "dailyshot data"
+      - "glue"
+      - "athena"
+      - "table_not_found"
+      - "aws_api_error"
+    body_notes:
+      - "dailyshot-cli 변경이 필요한 경우 이 issue에서 처리합니다."
+      - "plugin 변경만 필요한 경우 parent issue에서 처리합니다."
+
+  - key: dbt
+    owner: dailyshot-dev
+    repo: dailyshot-dbt
+    marker: "<!-- dailyshot-dbt-sub-issue -->"
+    auto_create: true
+    patterns:
+      - "dailyshot-dbt"
+      - "\\bdbt\\b"
+      - "dbt model"
+      - "model 추가"
+      - "모델 추가"
+      - "curated.*추가"
+      - "mart.*추가"
+      - "보고 싶은 데이터"
+      - "보고싶은 데이터"
+      - "테이블.*추가"
+      - "컬럼.*추가"
+      - "필드.*추가"
+      - "지표.*추가"
+      - "metric.*추가"
+    body_notes:
+      - "새로 보고 싶은 데이터, curated model/table/column/metric 추가가 필요한 경우 이 issue에서 처리합니다."
+      - "plugin 변경만 필요한 경우 parent issue에서 처리합니다."
+      - "dailyshot-cli manifest 또는 JSON contract 변경이 필요한 경우 별도 CLI issue로 연결합니다."

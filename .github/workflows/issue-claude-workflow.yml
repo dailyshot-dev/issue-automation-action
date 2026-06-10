@@ -1,0 +1,225 @@
+name: Shared Issue Claude Workflow
+
+on:
+  workflow_call:
+    inputs:
+      issue_number:
+        required: false
+        type: string
+      force_ai:
+        required: false
+        default: false
+        type: boolean
+      config_path:
+        required: false
+        default: .github/issue-automation.yml
+        type: string
+      agent_contract_path:
+        required: false
+        default: .github/ai/issue-agent-contract.md
+        type: string
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN:
+        required: false
+      DAILYSHOT_DEPENDENCY_ISSUE_TOKEN:
+        required: false
+
+permissions:
+  actions: read
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  issue-intake:
+    name: Issue intake and routing
+    if: ${{ github.event_name == 'workflow_dispatch' || !github.event.issue.pull_request }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout caller repository
+        uses: actions/checkout@v4
+
+      - name: Classify and route issue
+        uses: dailyshot-dev/issue-automation-action@v1
+        with:
+          phase: intake
+          github_token: ${{ secrets.DAILYSHOT_DEPENDENCY_ISSUE_TOKEN || github.token }}
+          issue_number: ${{ inputs.issue_number }}
+          config_path: ${{ inputs.config_path }}
+          agent_contract_path: ${{ inputs.agent_contract_path }}
+
+  claude-runner:
+    name: Claude issue runner
+    needs: issue-intake
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch'
+        || (
+          github.event_name == 'issues'
+          && !github.event.issue.pull_request
+          && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association)
+        )
+      }}
+    runs-on: ubuntu-latest
+    env:
+      CLAUDE_CODE_OAUTH_TOKEN_SET: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+    steps:
+      - name: Checkout caller repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ github.token }}
+
+      - name: Prepare Claude runner
+        id: prepare
+        uses: dailyshot-dev/issue-automation-action@v1
+        with:
+          phase: prepare
+          github_token: ${{ secrets.DAILYSHOT_DEPENDENCY_ISSUE_TOKEN || github.token }}
+          issue_number: ${{ inputs.issue_number }}
+          force_ai: ${{ inputs.force_ai }}
+          config_path: ${{ inputs.config_path }}
+          agent_contract_path: ${{ inputs.agent_contract_path }}
+
+      - name: Configure git
+        if: ${{ steps.prepare.outputs.should_run == 'true' }}
+        run: |
+          git config user.name "dailyshot-claude-runner"
+          git config user.email "dailyshot-claude-runner@users.noreply.github.com"
+
+      - name: Create branch
+        if: ${{ steps.prepare.outputs.should_run == 'true' }}
+        run: git checkout -b "${{ steps.prepare.outputs.branch }}"
+
+      - name: Run Claude Code
+        id: ai
+        if: ${{ steps.prepare.outputs.should_run == 'true' && env.CLAUDE_CODE_OAUTH_TOKEN_SET == 'true' }}
+        continue-on-error: true
+        uses: anthropics/claude-code-action@v1
+        env:
+          ISSUE_CONTEXT_PATH: ${{ steps.prepare.outputs.issue_context_path }}
+          RUNNER_RESULT_PATH: ${{ steps.prepare.outputs.runner_result_path }}
+          GH_TOKEN: ${{ github.token }}
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            ISSUE NUMBER: ${{ steps.prepare.outputs.issue_number }}
+            ISSUE CONTEXT PATH: ${{ steps.prepare.outputs.issue_context_path }}
+            RUNNER RESULT PATH: ${{ steps.prepare.outputs.runner_result_path }}
+            AGENT CONTRACT PATH: ${{ inputs.agent_contract_path }}
+
+            당신은 repository issue 처리 agent입니다.
+            모든 응답과 작성하는 issue/PR 설명은 한국어로 작성하세요.
+
+            1. ISSUE_CONTEXT_PATH와 AGENT CONTRACT PATH를 읽고 issue title/body/automation state를 확인합니다.
+            2. repository 변경만으로 해결 가능하고 범위가 명확하면 repository 파일을 직접 수정합니다.
+            3. workflow가 commit, push, PR 생성을 처리하므로 직접 수행하지 않습니다.
+            4. 테스트, self-test, lint, package install은 실행하지 않습니다.
+            5. repository 파일을 수정했다면 RUNNER_RESULT_PATH에 create_pr JSON을 작성합니다.
+            6. dependency repository 작업이 필요하면 RUNNER_RESULT_PATH의 needsIssues 배열에 config dependencies key를 작성합니다.
+            7. 정보가 부족하거나 사람의 판단이 필요하면 needs_info 또는 needs_maintainer 결과 JSON을 작성합니다.
+          claude_args: |
+            --allowedTools "Read,Edit,MultiEdit,Write,Glob,Grep,LS,Bash(git status:*),Bash(git diff:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(gh issue edit:*)"
+
+      - name: Finalize missing Claude token
+        if: ${{ steps.prepare.outputs.should_run == 'true' && env.CLAUDE_CODE_OAUTH_TOKEN_SET != 'true' }}
+        uses: dailyshot-dev/issue-automation-action@v1
+        with:
+          phase: finalize_claude_action_failure
+          github_token: ${{ secrets.DAILYSHOT_DEPENDENCY_ISSUE_TOKEN || github.token }}
+          issue_number: ${{ inputs.issue_number }}
+          config_path: ${{ inputs.config_path }}
+          failure_reason: Repository secret CLAUDE_CODE_OAUTH_TOKEN is not configured.
+
+      - name: Detect repository changes
+        id: changes
+        if: ${{ steps.prepare.outputs.should_run == 'true' && env.CLAUDE_CODE_OAUTH_TOKEN_SET == 'true' }}
+        continue-on-error: true
+        env:
+          ISSUE_CONTEXT_PATH: ${{ steps.prepare.outputs.issue_context_path }}
+          RUNNER_RESULT_PATH: ${{ steps.prepare.outputs.runner_result_path }}
+        run: |
+          if [ -n "$(git status --porcelain -- . ":(exclude)$ISSUE_CONTEXT_PATH" ":(exclude)$RUNNER_RESULT_PATH")" ]; then
+            printf 'has_changes=true\n' >>"$GITHUB_OUTPUT"
+          else
+            printf 'has_changes=false\n' >>"$GITHUB_OUTPUT"
+          fi
+
+      - name: Prepare pull request metadata
+        id: pr_metadata
+        if: ${{ steps.prepare.outputs.should_run == 'true' && env.CLAUDE_CODE_OAUTH_TOKEN_SET == 'true' && steps.ai.outcome == 'success' && steps.changes.outputs.has_changes == 'true' }}
+        continue-on-error: true
+        uses: dailyshot-dev/issue-automation-action@v1
+        with:
+          phase: prepare_pr_metadata
+          github_token: ${{ secrets.DAILYSHOT_DEPENDENCY_ISSUE_TOKEN || github.token }}
+          issue_number: ${{ inputs.issue_number }}
+          config_path: ${{ inputs.config_path }}
+
+      - name: Commit changes
+        id: commit
+        if: ${{ steps.prepare.outputs.should_run == 'true' && env.CLAUDE_CODE_OAUTH_TOKEN_SET == 'true' && steps.ai.outcome == 'success' && steps.changes.outputs.has_changes == 'true' && steps.pr_metadata.outcome == 'success' }}
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          COMMIT_MESSAGE: ${{ steps.pr_metadata.outputs.commit_message }}
+          ISSUE_CONTEXT_PATH: ${{ steps.prepare.outputs.issue_context_path }}
+          RUNNER_RESULT_PATH: ${{ steps.prepare.outputs.runner_result_path }}
+        run: |
+          git add --all -- . ":(exclude)$ISSUE_CONTEXT_PATH" ":(exclude)$RUNNER_RESULT_PATH"
+          git commit -m "$COMMIT_MESSAGE"
+          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --set-upstream origin "${{ steps.prepare.outputs.branch }}"
+
+      - name: Create pull request
+        id: pr
+        if: ${{ steps.prepare.outputs.should_run == 'true' && env.CLAUDE_CODE_OAUTH_TOKEN_SET == 'true' && steps.ai.outcome == 'success' && steps.changes.outputs.has_changes == 'true' && steps.pr_metadata.outcome == 'success' && steps.commit.outcome == 'success' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_TITLE: ${{ steps.pr_metadata.outputs.pr_title }}
+          PR_BODY: ${{ steps.pr_metadata.outputs.pr_body }}
+        run: |
+          pr_url="$(gh pr create --title "$PR_TITLE" --body "$PR_BODY")"
+          printf 'url=%s\n' "$pr_url" >>"$GITHUB_OUTPUT"
+
+      - name: Finalize PR result
+        if: ${{ steps.prepare.outputs.should_run == 'true' && env.CLAUDE_CODE_OAUTH_TOKEN_SET == 'true' && steps.ai.outcome == 'success' && steps.changes.outputs.has_changes == 'true' && steps.pr_metadata.outcome == 'success' && steps.commit.outcome == 'success' && steps.pr.outcome == 'success' }}
+        uses: dailyshot-dev/issue-automation-action@v1
+        with:
+          phase: finalize_pr
+          github_token: ${{ secrets.DAILYSHOT_DEPENDENCY_ISSUE_TOKEN || github.token }}
+          issue_number: ${{ inputs.issue_number }}
+          config_path: ${{ inputs.config_path }}
+          pr_url: ${{ steps.pr.outputs.url }}
+
+      - name: Finalize no-change result
+        if: ${{ steps.prepare.outputs.should_run == 'true' && env.CLAUDE_CODE_OAUTH_TOKEN_SET == 'true' && steps.ai.outcome == 'success' && steps.changes.outcome == 'success' && steps.changes.outputs.has_changes == 'false' }}
+        uses: dailyshot-dev/issue-automation-action@v1
+        with:
+          phase: finalize_no_changes
+          github_token: ${{ secrets.DAILYSHOT_DEPENDENCY_ISSUE_TOKEN || github.token }}
+          issue_number: ${{ inputs.issue_number }}
+          config_path: ${{ inputs.config_path }}
+
+      - name: Finalize failure
+        if: ${{ steps.prepare.outputs.should_run == 'true' && env.CLAUDE_CODE_OAUTH_TOKEN_SET == 'true' && steps.ai.outcome != 'success' }}
+        uses: dailyshot-dev/issue-automation-action@v1
+        with:
+          phase: finalize_failure
+          github_token: ${{ secrets.DAILYSHOT_DEPENDENCY_ISSUE_TOKEN || github.token }}
+          issue_number: ${{ inputs.issue_number }}
+          config_path: ${{ inputs.config_path }}
+          failure_reason: Claude runner execution failed. Check the workflow logs.
+
+      - name: Finalize workflow failure
+        if: ${{ steps.prepare.outputs.should_run == 'true' && env.CLAUDE_CODE_OAUTH_TOKEN_SET == 'true' && steps.ai.outcome == 'success' && (steps.changes.outcome != 'success' || (steps.changes.outputs.has_changes == 'true' && (steps.pr_metadata.outcome != 'success' || steps.commit.outcome != 'success' || steps.pr.outcome != 'success'))) }}
+        uses: dailyshot-dev/issue-automation-action@v1
+        with:
+          phase: finalize_failure
+          github_token: ${{ secrets.DAILYSHOT_DEPENDENCY_ISSUE_TOKEN || github.token }}
+          issue_number: ${{ inputs.issue_number }}
+          config_path: ${{ inputs.config_path }}
+          failure_reason: Repository change detection, metadata generation, commit, push, or PR creation failed. Check the workflow logs.

@@ -1,0 +1,63 @@
+runtime:
+  dir: .github/ai/runtime
+  issue_context_file: issue-context.md
+  runner_result_file: runner-result.json
+
+kind_rules:
+  - value: bug
+    patterns:
+      - "장애"
+      - "실패"
+      - "에러"
+      - "\\bfailed\\b"
+  - value: feature
+    patterns:
+      - "추가"
+      - "개선"
+      - "요청"
+
+default_kind: task
+
+area_rules:
+  - value: iam
+    patterns:
+      - "\\biam\\b"
+      - "role"
+      - "policy"
+      - "권한"
+  - value: network
+    patterns:
+      - "vpc"
+      - "subnet"
+      - "security group"
+      - "route53"
+  - value: terraform
+    patterns:
+      - "terraform"
+      - "\\btf\\b"
+
+maintainer_patterns:
+  - "보안"
+  - "권한"
+  - "credential"
+  - "token"
+  - "saml"
+  - "정책"
+
+dependencies:
+  - key: infra
+    owner: dailyshot-dev
+    repo: aws-infra
+    marker: "<!-- aws-infra-sub-issue -->"
+    auto_create: true
+    patterns:
+      - "aws-infra"
+      - "terraform"
+      - "\\biam\\b"
+      - "security group"
+      - "cloudfront"
+      - "s3"
+      - "route53"
+    body_notes:
+      - "AWS infrastructure 변경이 필요한 경우 이 issue에서 처리합니다."
+      - "caller repository 변경만 필요한 경우 parent issue에서 처리합니다."

@@ -1,0 +1,53 @@
+name: Dailyshot Issue Automation
+description: Manage issue automation state comments, create dependency issues, and finalize Claude runner results.
+
+inputs:
+  phase:
+    description: intake, prepare, prepare_pr_metadata, finalize_pr, finalize_no_changes, finalize_failure, finalize_claude_action_failure
+    required: true
+  github_token:
+    description: GitHub token used for issue, pull request, and repository API calls.
+    required: true
+  issue_number:
+    description: Issue number used for workflow_dispatch. Issue events can omit this.
+    required: false
+  force_ai:
+    description: Re-run the Claude runner even when the issue automation state is already working.
+    required: false
+    default: "false"
+  config_path:
+    description: Repository-local issue automation config path.
+    required: false
+    default: .github/issue-automation.yml
+  agent_contract_path:
+    description: Repository-local Claude agent contract path.
+    required: false
+    default: .github/ai/issue-agent-contract.md
+  pr_url:
+    description: Pull request URL for finalize_pr.
+    required: false
+  failure_reason:
+    description: Failure reason for finalize_failure or finalize_claude_action_failure.
+    required: false
+
+outputs:
+  should_run:
+    description: Whether the Claude runner should execute.
+  issue_number:
+    description: Loaded issue number.
+  branch:
+    description: Branch name for the Claude runner.
+  issue_context_path:
+    description: Generated issue context Markdown path.
+  runner_result_path:
+    description: Runner result JSON path.
+  commit_message:
+    description: Commit message read from runner result.
+  pr_title:
+    description: Pull request title read from runner result.
+  pr_body:
+    description: Pull request body generated from runner result.
+
+runs:
+  using: node20
+  main: dist/index.js
