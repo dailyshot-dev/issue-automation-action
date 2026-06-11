@@ -1,4 +1,5 @@
 import fs from "fs";
+import path from "path";
 import YAML from "yaml";
 
 import type { AutomationConfig, DependencyConfig, RuleConfig } from "./types";
@@ -61,13 +62,13 @@ const DEFAULT_CONFIG: AutomationConfig = {
  */
 export function loadConfig(configPath: string): AutomationConfig {
   if (!fs.existsSync(configPath)) {
-    return DEFAULT_CONFIG;
+    return withRuntimeDirOverride(DEFAULT_CONFIG);
   }
 
   const rawText = fs.readFileSync(configPath, "utf8");
   const raw = parseConfig(rawText, configPath);
 
-  return normalizeConfig(raw);
+  return withRuntimeDirOverride(normalizeConfig(raw));
 }
 
 function parseConfig(rawText: string, configPath: string): RawAutomationConfig {
@@ -95,6 +96,33 @@ function normalizeConfig(raw: RawAutomationConfig): AutomationConfig {
     maintainerPatterns: raw.maintainer_patterns ?? raw.maintainerPatterns ?? DEFAULT_CONFIG.maintainerPatterns,
     dependencies: normalizeDependencies(raw.dependencies ?? []),
   };
+}
+
+function withRuntimeDirOverride(config: AutomationConfig): AutomationConfig {
+  const runtimeDir = runtimeDirOverride();
+  if (!runtimeDir) {
+    return config;
+  }
+
+  return {
+    ...config,
+    runtime: {
+      ...config.runtime,
+      dir: runtimeDir,
+    },
+  };
+}
+
+function runtimeDirOverride(): string | undefined {
+  if (process.env.ISSUE_AUTOMATION_RUNTIME_DIR) {
+    return process.env.ISSUE_AUTOMATION_RUNTIME_DIR;
+  }
+
+  if (process.env.RUNNER_TEMP) {
+    return path.join(process.env.RUNNER_TEMP, "issue-automation");
+  }
+
+  return undefined;
 }
 
 function normalizeRules(rules: RawRuleConfig[], fieldName: string): RuleConfig[] {

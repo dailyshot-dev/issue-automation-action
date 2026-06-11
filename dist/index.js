@@ -29933,6 +29933,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.loadConfig = loadConfig;
 const fs_1 = __importDefault(__nccwpck_require__(9896));
+const path_1 = __importDefault(__nccwpck_require__(6928));
 const yaml_1 = __importDefault(__nccwpck_require__(84));
 const DEFAULT_CONFIG = {
     runtime: {
@@ -29951,11 +29952,11 @@ const DEFAULT_CONFIG = {
  */
 function loadConfig(configPath) {
     if (!fs_1.default.existsSync(configPath)) {
-        return DEFAULT_CONFIG;
+        return withRuntimeDirOverride(DEFAULT_CONFIG);
     }
     const rawText = fs_1.default.readFileSync(configPath, "utf8");
     const raw = parseConfig(rawText, configPath);
-    return normalizeConfig(raw);
+    return withRuntimeDirOverride(normalizeConfig(raw));
 }
 function parseConfig(rawText, configPath) {
     if (configPath.endsWith(".json")) {
@@ -29977,6 +29978,28 @@ function normalizeConfig(raw) {
         maintainerPatterns: raw.maintainer_patterns ?? raw.maintainerPatterns ?? DEFAULT_CONFIG.maintainerPatterns,
         dependencies: normalizeDependencies(raw.dependencies ?? []),
     };
+}
+function withRuntimeDirOverride(config) {
+    const runtimeDir = runtimeDirOverride();
+    if (!runtimeDir) {
+        return config;
+    }
+    return {
+        ...config,
+        runtime: {
+            ...config.runtime,
+            dir: runtimeDir,
+        },
+    };
+}
+function runtimeDirOverride() {
+    if (process.env.ISSUE_AUTOMATION_RUNTIME_DIR) {
+        return process.env.ISSUE_AUTOMATION_RUNTIME_DIR;
+    }
+    if (process.env.RUNNER_TEMP) {
+        return path_1.default.join(process.env.RUNNER_TEMP, "issue-automation");
+    }
+    return undefined;
 }
 function normalizeRules(rules, fieldName) {
     return rules.map((rule, index) => ({

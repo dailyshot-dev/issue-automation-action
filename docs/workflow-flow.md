@@ -77,9 +77,9 @@ flowchart TD
 
 - `.github/issue-automation.yml`: caller repository별 classification, dependency routing, runtime path 설정
 - `.github/ai/issue-agent-contract.md`: Claude Code agent가 따라야 하는 repository별 처리 계약
-- `.github/ai/runtime/issue-context.md`: prepare 단계가 생성하고 Claude Code Action이 읽는 issue context
-- `.github/ai/runtime/runner-result.json`: Claude Code Action이 쓰고 `prepare_pr_metadata`, `finalize_pr`, `finalize_no_changes`가 읽는 결과 JSON
-- Runtime 파일은 repository 변경 감지와 commit 대상에서 제외합니다.
+- `$RUNNER_TEMP/issue-automation/issue-context.md`: prepare 단계가 생성하고 Claude Code Action이 읽는 issue context
+- `$RUNNER_TEMP/issue-automation/runner-result.json`: Claude Code Action이 쓰고 `prepare_pr_metadata`, `finalize_pr`, `finalize_no_changes`가 읽는 결과 JSON
+- Runtime 파일은 repository working tree 밖에 생성하므로 변경 감지와 commit 대상에 포함되지 않습니다.
 
 ## Phase Responsibilities
 

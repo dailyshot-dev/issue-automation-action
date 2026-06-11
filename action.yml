@@ -70,6 +70,7 @@ runs:
         INPUT_FORCE_AI: ${{ inputs.force_ai }}
         INPUT_CONFIG_PATH: ${{ inputs.config_path }}
         INPUT_AGENT_CONTRACT_PATH: ${{ inputs.agent_contract_path }}
+        ISSUE_AUTOMATION_RUNTIME_DIR: ${{ runner.temp }}/issue-automation
       run: node "$GITHUB_ACTION_PATH/dist/index.js"
 
     - name: Prepare Claude runner
@@ -91,6 +92,7 @@ runs:
         INPUT_FORCE_AI: ${{ inputs.force_ai }}
         INPUT_CONFIG_PATH: ${{ inputs.config_path }}
         INPUT_AGENT_CONTRACT_PATH: ${{ inputs.agent_contract_path }}
+        ISSUE_AUTOMATION_RUNTIME_DIR: ${{ runner.temp }}/issue-automation
       run: node "$GITHUB_ACTION_PATH/dist/index.js"
 
     - name: Configure git
@@ -148,6 +150,7 @@ runs:
         INPUT_CONFIG_PATH: ${{ inputs.config_path }}
         INPUT_AGENT_CONTRACT_PATH: ${{ inputs.agent_contract_path }}
         INPUT_FAILURE_REASON: Repository secret CLAUDE_CODE_OAUTH_TOKEN is not configured.
+        ISSUE_AUTOMATION_RUNTIME_DIR: ${{ runner.temp }}/issue-automation
       run: node "$GITHUB_ACTION_PATH/dist/index.js"
 
     - name: Detect repository changes
@@ -155,11 +158,8 @@ runs:
       if: ${{ steps.prepare.outputs.should_run == 'true' && inputs.claude_code_oauth_token != '' }}
       continue-on-error: true
       shell: bash
-      env:
-        ISSUE_CONTEXT_PATH: ${{ steps.prepare.outputs.issue_context_path }}
-        RUNNER_RESULT_PATH: ${{ steps.prepare.outputs.runner_result_path }}
       run: |
-        if [ -n "$(git status --porcelain -- . ":(exclude)$ISSUE_CONTEXT_PATH" ":(exclude)$RUNNER_RESULT_PATH")" ]; then
+        if [ -n "$(git status --porcelain -- .)" ]; then
           printf 'has_changes=true\n' >>"$GITHUB_OUTPUT"
         else
           printf 'has_changes=false\n' >>"$GITHUB_OUTPUT"
@@ -177,6 +177,7 @@ runs:
         INPUT_FORCE_AI: ${{ inputs.force_ai }}
         INPUT_CONFIG_PATH: ${{ inputs.config_path }}
         INPUT_AGENT_CONTRACT_PATH: ${{ inputs.agent_contract_path }}
+        ISSUE_AUTOMATION_RUNTIME_DIR: ${{ runner.temp }}/issue-automation
       run: node "$GITHUB_ACTION_PATH/dist/index.js"
 
     - name: Commit changes
@@ -190,7 +191,9 @@ runs:
         ISSUE_CONTEXT_PATH: ${{ steps.prepare.outputs.issue_context_path }}
         RUNNER_RESULT_PATH: ${{ steps.prepare.outputs.runner_result_path }}
       run: |
-        git add --all -- . ":(exclude)$ISSUE_CONTEXT_PATH" ":(exclude)$RUNNER_RESULT_PATH"
+        git add --all -- .
+        git reset -q -- "$ISSUE_CONTEXT_PATH" 2>/dev/null || true
+        git reset -q -- "$RUNNER_RESULT_PATH" 2>/dev/null || true
         git commit -m "$COMMIT_MESSAGE"
         git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
         git push --set-upstream origin "${{ steps.prepare.outputs.branch }}"
@@ -219,6 +222,7 @@ runs:
         INPUT_CONFIG_PATH: ${{ inputs.config_path }}
         INPUT_AGENT_CONTRACT_PATH: ${{ inputs.agent_contract_path }}
         INPUT_PR_URL: ${{ steps.pr.outputs.url }}
+        ISSUE_AUTOMATION_RUNTIME_DIR: ${{ runner.temp }}/issue-automation
       run: node "$GITHUB_ACTION_PATH/dist/index.js"
 
     - name: Finalize no-change result
@@ -231,6 +235,7 @@ runs:
         INPUT_FORCE_AI: ${{ inputs.force_ai }}
         INPUT_CONFIG_PATH: ${{ inputs.config_path }}
         INPUT_AGENT_CONTRACT_PATH: ${{ inputs.agent_contract_path }}
+        ISSUE_AUTOMATION_RUNTIME_DIR: ${{ runner.temp }}/issue-automation
       run: node "$GITHUB_ACTION_PATH/dist/index.js"
 
     - name: Finalize Claude runner failure
@@ -244,6 +249,7 @@ runs:
         INPUT_CONFIG_PATH: ${{ inputs.config_path }}
         INPUT_AGENT_CONTRACT_PATH: ${{ inputs.agent_contract_path }}
         INPUT_FAILURE_REASON: Claude runner execution failed. Check the workflow logs.
+        ISSUE_AUTOMATION_RUNTIME_DIR: ${{ runner.temp }}/issue-automation
       run: node "$GITHUB_ACTION_PATH/dist/index.js"
 
     - name: Finalize workflow failure
@@ -257,4 +263,5 @@ runs:
         INPUT_CONFIG_PATH: ${{ inputs.config_path }}
         INPUT_AGENT_CONTRACT_PATH: ${{ inputs.agent_contract_path }}
         INPUT_FAILURE_REASON: Repository change detection, metadata generation, commit, push, or PR creation failed. Check the workflow logs.
+        ISSUE_AUTOMATION_RUNTIME_DIR: ${{ runner.temp }}/issue-automation
       run: node "$GITHUB_ACTION_PATH/dist/index.js"

@@ -99,6 +99,10 @@ Composite action의 prepare 단계는 issue state를 읽고 실행 여부를 결
 
 Action은 parent issue의 `<!-- dailyshot-issue-automation-state` marker comment를 상태 저장소로 사용합니다. Comment body에는 hidden JSON block과 사람이 읽을 수 있는 summary가 함께 들어갑니다.
 
+## Runtime Files
+
+Composite action 실행 중 생성되는 `issue-context.md`, `runner-result.json` 같은 runtime 파일은 `$RUNNER_TEMP/issue-automation` 아래에 씁니다. Repository config에 `runtime.dir`이 있어도 GitHub Actions 실행 환경에서는 temp runtime directory가 우선됩니다. Runtime 파일은 repository working tree 밖에 있으므로 변경 감지와 `git add` 대상에 포함되지 않습니다.
+
 저장되는 주요 필드:
 
 | Field | 의미 |
@@ -161,7 +165,7 @@ dependencies:
 
 | Field | 필수 | 설명 |
 | --- | --- | --- |
-| `runtime.dir` | 아니오 | Claude runtime 파일을 쓰는 directory |
+| `runtime.dir` | 아니오 | 로컬 실행 시 Claude runtime 파일을 쓰는 directory. GitHub Actions에서는 `$RUNNER_TEMP/issue-automation`이 우선됩니다. |
 | `runtime.issue_context_file` | 아니오 | prepare 단계가 생성하는 issue context 파일명 |
 | `runtime.runner_result_file` | 아니오 | Claude runner가 작성하는 result JSON 파일명 |
 | `kind_rules[].value` | 예 | matching 시 저장할 `kind` 값 |
