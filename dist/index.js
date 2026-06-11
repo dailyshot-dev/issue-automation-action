@@ -30256,6 +30256,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(6966));
 const github = __importStar(__nccwpck_require__(4903));
 const config_1 = __nccwpck_require__(6878);
+const inputs_1 = __nccwpck_require__(6713);
 const phases_1 = __nccwpck_require__(9128);
 const PHASES = [
     "intake",
@@ -30289,7 +30290,7 @@ function readInputs() {
     return {
         phase: parsePhase(core.getInput("phase", { required: true })),
         issueNumber: optionalInput("issue_number"),
-        forceAi: core.getBooleanInput("force_ai"),
+        forceAi: (0, inputs_1.optionalBooleanInput)(core, "force_ai"),
         configPath: core.getInput("config_path") || ".github/issue-automation.yml",
         agentContractPath: core.getInput("agent_contract_path") || ".github/ai/issue-agent-contract.md",
         prUrl: optionalInput("pr_url"),
@@ -30316,6 +30317,27 @@ void main().catch((error) => {
     const message = error instanceof Error ? error.message : String(error);
     core.setFailed(message);
 });
+
+
+/***/ }),
+
+/***/ 6713:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.optionalBooleanInput = optionalBooleanInput;
+/**
+ * Reads an optional boolean action input while treating blank values as a safe default.
+ */
+function optionalBooleanInput(actionsCore, name, defaultValue = false) {
+    const rawValue = actionsCore.getInput(name);
+    if (!rawValue) {
+        return defaultValue;
+    }
+    return actionsCore.getBooleanInput(name);
+}
 
 
 /***/ }),

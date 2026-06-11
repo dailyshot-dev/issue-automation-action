@@ -144,6 +144,7 @@ runs:
         INPUT_PHASE: finalize_claude_action_failure
         INPUT_GITHUB_TOKEN: ${{ inputs.dependency_issue_token || inputs.github_token }}
         INPUT_ISSUE_NUMBER: ${{ inputs.issue_number }}
+        INPUT_FORCE_AI: ${{ inputs.force_ai }}
         INPUT_CONFIG_PATH: ${{ inputs.config_path }}
         INPUT_AGENT_CONTRACT_PATH: ${{ inputs.agent_contract_path }}
         INPUT_FAILURE_REASON: Repository secret CLAUDE_CODE_OAUTH_TOKEN is not configured.
@@ -173,6 +174,7 @@ runs:
         INPUT_PHASE: prepare_pr_metadata
         INPUT_GITHUB_TOKEN: ${{ inputs.dependency_issue_token || inputs.github_token }}
         INPUT_ISSUE_NUMBER: ${{ inputs.issue_number }}
+        INPUT_FORCE_AI: ${{ inputs.force_ai }}
         INPUT_CONFIG_PATH: ${{ inputs.config_path }}
         INPUT_AGENT_CONTRACT_PATH: ${{ inputs.agent_contract_path }}
       run: node "$GITHUB_ACTION_PATH/dist/index.js"
@@ -213,6 +215,7 @@ runs:
         INPUT_PHASE: finalize_pr
         INPUT_GITHUB_TOKEN: ${{ inputs.dependency_issue_token || inputs.github_token }}
         INPUT_ISSUE_NUMBER: ${{ inputs.issue_number }}
+        INPUT_FORCE_AI: ${{ inputs.force_ai }}
         INPUT_CONFIG_PATH: ${{ inputs.config_path }}
         INPUT_AGENT_CONTRACT_PATH: ${{ inputs.agent_contract_path }}
         INPUT_PR_URL: ${{ steps.pr.outputs.url }}
@@ -225,6 +228,7 @@ runs:
         INPUT_PHASE: finalize_no_changes
         INPUT_GITHUB_TOKEN: ${{ inputs.dependency_issue_token || inputs.github_token }}
         INPUT_ISSUE_NUMBER: ${{ inputs.issue_number }}
+        INPUT_FORCE_AI: ${{ inputs.force_ai }}
         INPUT_CONFIG_PATH: ${{ inputs.config_path }}
         INPUT_AGENT_CONTRACT_PATH: ${{ inputs.agent_contract_path }}
       run: node "$GITHUB_ACTION_PATH/dist/index.js"
@@ -236,6 +240,7 @@ runs:
         INPUT_PHASE: finalize_failure
         INPUT_GITHUB_TOKEN: ${{ inputs.dependency_issue_token || inputs.github_token }}
         INPUT_ISSUE_NUMBER: ${{ inputs.issue_number }}
+        INPUT_FORCE_AI: ${{ inputs.force_ai }}
         INPUT_CONFIG_PATH: ${{ inputs.config_path }}
         INPUT_AGENT_CONTRACT_PATH: ${{ inputs.agent_contract_path }}
         INPUT_FAILURE_REASON: Claude runner execution failed. Check the workflow logs.
@@ -248,6 +253,7 @@ runs:
         INPUT_PHASE: finalize_failure
         INPUT_GITHUB_TOKEN: ${{ inputs.dependency_issue_token || inputs.github_token }}
         INPUT_ISSUE_NUMBER: ${{ inputs.issue_number }}
+        INPUT_FORCE_AI: ${{ inputs.force_ai }}
         INPUT_CONFIG_PATH: ${{ inputs.config_path }}
         INPUT_AGENT_CONTRACT_PATH: ${{ inputs.agent_contract_path }}
         INPUT_FAILURE_REASON: Repository change detection, metadata generation, commit, push, or PR creation failed. Check the workflow logs.

@@ -2,6 +2,7 @@ import * as core from "@actions/core";
 import * as github from "@actions/github";
 
 import { loadConfig } from "./config";
+import { optionalBooleanInput } from "./inputs";
 import { runPhase } from "./phases";
 import type { ActionInputs, Phase } from "./types";
 
@@ -40,7 +41,7 @@ function readInputs(): ActionInputs {
   return {
     phase: parsePhase(core.getInput("phase", { required: true })),
     issueNumber: optionalInput("issue_number"),
-    forceAi: core.getBooleanInput("force_ai"),
+    forceAi: optionalBooleanInput(core, "force_ai"),
     configPath: core.getInput("config_path") || ".github/issue-automation.yml",
     agentContractPath: core.getInput("agent_contract_path") || ".github/ai/issue-agent-contract.md",
     prUrl: optionalInput("pr_url"),
