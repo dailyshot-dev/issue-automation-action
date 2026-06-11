@@ -16,7 +16,6 @@ Dailyshot 여러 repository에서 issue 처리 흐름을 공통으로 운영하�
 - `action.yml`: custom action 입력, 출력, 실행 entrypoint
 - `src/`: TypeScript source
 - `dist/`: `pnpm build`로 생성하는 배포용 bundled action
-- `.github/workflows/issue-claude-workflow.yml`: 대상 repository가 호출하는 reusable workflow
 - `examples/`: repository별 `.github/issue-automation.yml` 예시
 - `docs/workflow-flow.md`: workflow phase와 입출력 흐름
 
@@ -57,26 +56,21 @@ permissions:
 
 jobs:
   issue-automation:
-    uses: dailyshot-dev/issue-automation-action/.github/workflows/issue-claude-workflow.yml@<commit-sha>
-    with:
-      issue_number: ${{ github.event.issue.number || inputs.issue_number }}
-      force_ai: ${{ inputs.force_ai || false }}
-      config_path: .github/issue-automation.yml
-      agent_contract_path: .github/ai/issue-agent-contract.md
-    secrets: inherit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run issue automation
+        uses: dailyshot-dev/issue-automation-action@<commit-sha>
+        with:
+          github_token: ${{ github.token }}
+          dependency_issue_token: ${{ secrets.DAILYSHOT_DEPENDENCY_ISSUE_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          issue_number: ${{ github.event.issue.number || inputs.issue_number }}
+          force_ai: ${{ inputs.force_ai || false }}
+          config_path: .github/issue-automation.yml
+          agent_contract_path: .github/ai/issue-agent-contract.md
 ```
 
-`<commit-sha>`에는 이 repository의 배포 commit hash를 넣습니다. Reusable workflow를 쓰는 대상 repository는 workflow 파일 경로까지 포함해야 합니다.
-
-Custom action phase를 직접 호출할 때는 아래 형식을 사용합니다.
-
-```yaml
-- name: Run issue automation phase
-  uses: dailyshot-dev/issue-automation-action@<commit-sha>
-  with:
-    phase: intake
-    github_token: ${{ github.token }}
-```
+`<commit-sha>`에는 이 repository의 배포 commit hash를 넣습니다. Caller repository는 root composite action을 직접 호출합니다.
 
 ## Required Secrets
 
@@ -89,7 +83,7 @@ Custom action phase를 직접 호출할 때는 아래 형식을 사용합니다.
 
 `issues` event에서는 issue 작성자의 `author_association`이 `OWNER`, `MEMBER`, `COLLABORATOR` 중 하나일 때 Claude runner job을 실행합니다. `workflow_dispatch`는 maintainer 수동 실행 경로입니다.
 
-`phase=prepare`는 issue state를 읽고 실행 여부를 결정합니다.
+Composite action의 prepare 단계는 issue state를 읽고 실행 여부를 결정합니다.
 
 | State | Claude runner 실행 |
 | --- | --- |
@@ -168,7 +162,7 @@ dependencies:
 | Field | 필수 | 설명 |
 | --- | --- | --- |
 | `runtime.dir` | 아니오 | Claude runtime 파일을 쓰는 directory |
-| `runtime.issue_context_file` | 아니오 | `phase=prepare`가 생성하는 issue context 파일명 |
+| `runtime.issue_context_file` | 아니오 | prepare 단계가 생성하는 issue context 파일명 |
 | `runtime.runner_result_file` | 아니오 | Claude runner가 작성하는 result JSON 파일명 |
 | `kind_rules[].value` | 예 | matching 시 저장할 `kind` 값 |
 | `kind_rules[].patterns` | 아니오 | title/body에 적용할 정규식 목록 |
@@ -295,7 +289,7 @@ Dependency repository 작업이 필요하면 `needsIssues`에 config의 `depende
 1. Repository 성격에 맞는 `examples/*.issue-automation.yml`을 선택합니다.
 2. 선택한 예시를 대상 repository의 `.github/issue-automation.yml`로 복사하고 `kind_rules`, `area_rules`, `maintainer_patterns`, `dependencies`를 repository 용어에 맞춥니다.
 3. `.github/ai/issue-agent-contract.md`를 생성하고 해당 repository의 테스트, lint, 금지 작업, PR 작성 규칙을 적습니다.
-4. `.github/workflows/issue-claude.yml`을 추가하고 reusable workflow ref를 현재 배포 commit hash로 지정합니다.
+4. `.github/workflows/issue-claude.yml`을 추가하고 root action ref를 현재 배포 commit hash로 지정합니다.
 5. 필요한 secrets가 설정되어 있는지 확인합니다.
 6. `workflow_dispatch`로 실제 issue를 하나 실행합니다.
 7. Parent issue에 `AI issue automation` comment가 생겼는지 확인합니다.
@@ -325,6 +319,6 @@ pnpm check
 
 1. `pnpm check`를 통과시킵니다.
 2. `dist/index.js`, `dist/index.js.map`, `dist/licenses.txt`, `dist/sourcemap-register.js`가 최신 build 결과인지 확인합니다.
-3. `action.yml` input/output과 reusable workflow의 `with` 값이 일치하는지 확인합니다.
+3. `action.yml` input/output과 caller workflow의 `with` 값이 일치하는지 확인합니다.
 4. Example config가 `src/config.ts` schema와 일치하는지 확인합니다.
 5. 배포 commit hash를 caller workflow의 ref로 사용합니다.

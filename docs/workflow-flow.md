@@ -6,9 +6,9 @@
 
 ```mermaid
 flowchart TD
-  A["Issue opened 또는 workflow_dispatch"] --> B["Reusable workflow 호출"]
-  B --> C["issue-intake job"]
-  C --> D["phase=intake"]
+  A["Issue opened 또는 workflow_dispatch"] --> B["Caller workflow job"]
+  B --> C["dailyshot issue automation composite action"]
+  C --> D["internal phase=intake"]
   D --> E["Load GitHub issue"]
   E --> F["Read .github/issue-automation.yml"]
   F --> G["title/body 기반 kind, area, dependency, maintainer 판정"]
@@ -19,10 +19,9 @@ flowchart TD
   I -->|"no"| H
   H --> L["intake 완료"]
 
-  L --> M["claude-runner job"]
-  M --> MA{"workflow_dispatch 또는 write 권한 작성자 issue?"}
-  MA -->|"no"| MB["Claude runner job 종료"]
-  MA -->|"yes"| N["phase=prepare"]
+  L --> M{"workflow_dispatch 또는 write 권한 작성자 issue?"}
+  M -->|"no"| MB["Claude runner 단계 skip"]
+  M -->|"yes"| N["internal phase=prepare"]
   N --> O["Load GitHub issue"]
   O --> P{"runner 실행 가능?"}
   P -->|"no"| Z["workflow 종료"]
@@ -30,7 +29,7 @@ flowchart TD
   Q --> R["Write .github/ai/runtime/issue-context.md"]
   R --> S["Create ai/issue-* branch"]
   S --> TA{"CLAUDE_CODE_OAUTH_TOKEN 설정됨?"}
-  TA -->|"no"| DA["phase=finalize_claude_action_failure"]
+  TA -->|"no"| DA["internal phase=finalize_claude_action_failure"]
   DA --> DB["state status=needs_maintainer 저장"]
   DB --> DD["Parent issue에 Claude Action failure comment 작성"]
   TA -->|"yes"| T["Run Claude Code Action"]
@@ -40,23 +39,23 @@ flowchart TD
   T --> X["Write .github/ai/runtime/runner-result.json"]
 
   X --> Y{"runtime 파일 제외한 git status 변경 있음?"}
-  Y -->|"yes"| AA["phase=prepare_pr_metadata"]
+  Y -->|"yes"| AA["internal phase=prepare_pr_metadata"]
   AA --> AB["Read runner-result.json"]
   AB --> AC["commit_message, pr_title, pr_body outputs"]
   AC --> AD["runtime 파일 제외하고 git add, commit, push"]
   AD --> AE["gh pr create"]
-  AE --> AF["phase=finalize_pr"]
+  AE --> AF["internal phase=finalize_pr"]
   AF --> AG["Read runner-result.json"]
   AG --> AH["state status=pr_created 저장"]
   AH --> AI["needsIssues 기반 dependency issue 생성"]
   AI --> AK["Parent issue에 PR result comment 작성"]
 
-  AD -->|"commit/push 실패"| EA["phase=finalize_failure"]
+  AD -->|"commit/push 실패"| EA["internal phase=finalize_failure"]
   AE -->|"PR 생성 실패"| EA
   EA --> EB["state status=needs_maintainer 저장"]
   EB --> ED["Parent issue에 workflow failure comment 작성"]
 
-  Y -->|"no"| BA["phase=finalize_no_changes"]
+  Y -->|"no"| BA["internal phase=finalize_no_changes"]
   BA --> BB["Read runner-result.json"]
   BB --> BC{"action 값 확인"}
   BC -->|"needs_info"| BD["state status=needs_info 저장"]
@@ -69,7 +68,7 @@ flowchart TD
   BG --> BH
   BH --> BI["Parent issue에 no-change result comment 작성"]
 
-  T -->|"Claude 실패"| CA["phase=finalize_failure"]
+  T -->|"Claude 실패"| CA["internal phase=finalize_failure"]
   CA --> CB["state status=needs_maintainer 저장"]
   CB --> CD["Parent issue에 failure comment 작성"]
 ```
@@ -78,7 +77,7 @@ flowchart TD
 
 - `.github/issue-automation.yml`: caller repository별 classification, dependency routing, runtime path 설정
 - `.github/ai/issue-agent-contract.md`: Claude Code agent가 따라야 하는 repository별 처리 계약
-- `.github/ai/runtime/issue-context.md`: `phase=prepare`가 생성하고 Claude Code Action이 읽는 issue context
+- `.github/ai/runtime/issue-context.md`: prepare 단계가 생성하고 Claude Code Action이 읽는 issue context
 - `.github/ai/runtime/runner-result.json`: Claude Code Action이 쓰고 `prepare_pr_metadata`, `finalize_pr`, `finalize_no_changes`가 읽는 결과 JSON
 - Runtime 파일은 repository 변경 감지와 commit 대상에서 제외합니다.
 
@@ -107,4 +106,4 @@ flowchart TD
 
 - `issues` event에서는 issue 작성자의 `author_association`이 `OWNER`, `MEMBER`, `COLLABORATOR` 중 하나일 때만 Claude runner job을 실행합니다.
 - `workflow_dispatch`는 maintainer가 수동으로 실행하는 경로로 간주해 Claude runner job을 실행할 수 있습니다.
-- Claude runner 이후 변경 감지, PR metadata 생성, commit, push, PR 생성 단계가 실패하면 `phase=finalize_failure`로 parent issue state status를 `needs_maintainer`로 저장합니다.
+- Claude runner 이후 변경 감지, PR metadata 생성, commit, push, PR 생성 단계가 실패하면 finalize failure 단계에서 parent issue state status를 `needs_maintainer`로 저장합니다.
