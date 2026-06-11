@@ -57,13 +57,25 @@ permissions:
 
 jobs:
   issue-automation:
-    uses: dailyshot-dev/issue-automation-action/.github/workflows/issue-claude-workflow.yml@v1
+    uses: dailyshot-dev/issue-automation-action/.github/workflows/issue-claude-workflow.yml@<commit-sha>
     with:
       issue_number: ${{ github.event.issue.number || inputs.issue_number }}
       force_ai: ${{ inputs.force_ai || false }}
       config_path: .github/issue-automation.yml
       agent_contract_path: .github/ai/issue-agent-contract.md
     secrets: inherit
+```
+
+`<commit-sha>`에는 이 repository의 배포 commit hash를 넣습니다. Reusable workflow를 쓰는 대상 repository는 workflow 파일 경로까지 포함해야 합니다.
+
+Custom action phase를 직접 호출할 때는 아래 형식을 사용합니다.
+
+```yaml
+- name: Run issue automation phase
+  uses: dailyshot-dev/issue-automation-action@<commit-sha>
+  with:
+    phase: intake
+    github_token: ${{ github.token }}
 ```
 
 ## Required Secrets
@@ -283,7 +295,7 @@ Dependency repository 작업이 필요하면 `needsIssues`에 config의 `depende
 1. Repository 성격에 맞는 `examples/*.issue-automation.yml`을 선택합니다.
 2. 선택한 예시를 대상 repository의 `.github/issue-automation.yml`로 복사하고 `kind_rules`, `area_rules`, `maintainer_patterns`, `dependencies`를 repository 용어에 맞춥니다.
 3. `.github/ai/issue-agent-contract.md`를 생성하고 해당 repository의 테스트, lint, 금지 작업, PR 작성 규칙을 적습니다.
-4. `.github/workflows/issue-claude.yml`을 추가하고 reusable workflow ref를 현재 배포 tag로 지정합니다.
+4. `.github/workflows/issue-claude.yml`을 추가하고 reusable workflow ref를 현재 배포 commit hash로 지정합니다.
 5. 필요한 secrets가 설정되어 있는지 확인합니다.
 6. `workflow_dispatch`로 실제 issue를 하나 실행합니다.
 7. Parent issue에 `AI issue automation` comment가 생겼는지 확인합니다.
@@ -315,4 +327,4 @@ pnpm check
 2. `dist/index.js`, `dist/index.js.map`, `dist/licenses.txt`, `dist/sourcemap-register.js`가 최신 build 결과인지 확인합니다.
 3. `action.yml` input/output과 reusable workflow의 `with` 값이 일치하는지 확인합니다.
 4. Example config가 `src/config.ts` schema와 일치하는지 확인합니다.
-5. 배포 tag를 생성하고 caller workflow의 ref를 해당 tag로 사용합니다.
+5. 배포 commit hash를 caller workflow의 ref로 사용합니다.

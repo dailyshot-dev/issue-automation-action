@@ -40,7 +40,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Classify and route issue
-        uses: dailyshot-dev/issue-automation-action@v1
+        uses: dailyshot-dev/issue-automation-action@a2ae6c566cdd776da4fb4a0dc830dbecccca31fb
         with:
           phase: intake
           github_token: ${{ secrets.DAILYSHOT_DEPENDENCY_ISSUE_TOKEN || github.token }}
@@ -72,7 +72,7 @@ jobs:
 
       - name: Prepare Claude runner
         id: prepare
-        uses: dailyshot-dev/issue-automation-action@v1
+        uses: dailyshot-dev/issue-automation-action@a2ae6c566cdd776da4fb4a0dc830dbecccca31fb
         with:
           phase: prepare
           github_token: ${{ secrets.DAILYSHOT_DEPENDENCY_ISSUE_TOKEN || github.token }}
@@ -125,7 +125,7 @@ jobs:
 
       - name: Finalize missing Claude token
         if: ${{ steps.prepare.outputs.should_run == 'true' && env.CLAUDE_CODE_OAUTH_TOKEN_SET != 'true' }}
-        uses: dailyshot-dev/issue-automation-action@v1
+        uses: dailyshot-dev/issue-automation-action@a2ae6c566cdd776da4fb4a0dc830dbecccca31fb
         with:
           phase: finalize_claude_action_failure
           github_token: ${{ secrets.DAILYSHOT_DEPENDENCY_ISSUE_TOKEN || github.token }}
@@ -151,7 +151,7 @@ jobs:
         id: pr_metadata
         if: ${{ steps.prepare.outputs.should_run == 'true' && env.CLAUDE_CODE_OAUTH_TOKEN_SET == 'true' && steps.ai.outcome == 'success' && steps.changes.outputs.has_changes == 'true' }}
         continue-on-error: true
-        uses: dailyshot-dev/issue-automation-action@v1
+        uses: dailyshot-dev/issue-automation-action@a2ae6c566cdd776da4fb4a0dc830dbecccca31fb
         with:
           phase: prepare_pr_metadata
           github_token: ${{ secrets.DAILYSHOT_DEPENDENCY_ISSUE_TOKEN || github.token }}
@@ -187,7 +187,7 @@ jobs:
 
       - name: Finalize PR result
         if: ${{ steps.prepare.outputs.should_run == 'true' && env.CLAUDE_CODE_OAUTH_TOKEN_SET == 'true' && steps.ai.outcome == 'success' && steps.changes.outputs.has_changes == 'true' && steps.pr_metadata.outcome == 'success' && steps.commit.outcome == 'success' && steps.pr.outcome == 'success' }}
-        uses: dailyshot-dev/issue-automation-action@v1
+        uses: dailyshot-dev/issue-automation-action@a2ae6c566cdd776da4fb4a0dc830dbecccca31fb
         with:
           phase: finalize_pr
           github_token: ${{ secrets.DAILYSHOT_DEPENDENCY_ISSUE_TOKEN || github.token }}
@@ -197,7 +197,7 @@ jobs:
 
       - name: Finalize no-change result
         if: ${{ steps.prepare.outputs.should_run == 'true' && env.CLAUDE_CODE_OAUTH_TOKEN_SET == 'true' && steps.ai.outcome == 'success' && steps.changes.outcome == 'success' && steps.changes.outputs.has_changes == 'false' }}
-        uses: dailyshot-dev/issue-automation-action@v1
+        uses: dailyshot-dev/issue-automation-action@a2ae6c566cdd776da4fb4a0dc830dbecccca31fb
         with:
           phase: finalize_no_changes
           github_token: ${{ secrets.DAILYSHOT_DEPENDENCY_ISSUE_TOKEN || github.token }}
@@ -206,7 +206,7 @@ jobs:
 
       - name: Finalize failure
         if: ${{ steps.prepare.outputs.should_run == 'true' && env.CLAUDE_CODE_OAUTH_TOKEN_SET == 'true' && steps.ai.outcome != 'success' }}
-        uses: dailyshot-dev/issue-automation-action@v1
+        uses: dailyshot-dev/issue-automation-action@a2ae6c566cdd776da4fb4a0dc830dbecccca31fb
         with:
           phase: finalize_failure
           github_token: ${{ secrets.DAILYSHOT_DEPENDENCY_ISSUE_TOKEN || github.token }}
@@ -216,7 +216,7 @@ jobs:
 
       - name: Finalize workflow failure
         if: ${{ steps.prepare.outputs.should_run == 'true' && env.CLAUDE_CODE_OAUTH_TOKEN_SET == 'true' && steps.ai.outcome == 'success' && (steps.changes.outcome != 'success' || (steps.changes.outputs.has_changes == 'true' && (steps.pr_metadata.outcome != 'success' || steps.commit.outcome != 'success' || steps.pr.outcome != 'success'))) }}
-        uses: dailyshot-dev/issue-automation-action@v1
+        uses: dailyshot-dev/issue-automation-action@a2ae6c566cdd776da4fb4a0dc830dbecccca31fb
         with:
           phase: finalize_failure
           github_token: ${{ secrets.DAILYSHOT_DEPENDENCY_ISSUE_TOKEN || github.token }}
