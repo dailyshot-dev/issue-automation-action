@@ -36,6 +36,25 @@ describe("phases", () => {
     expect(updatedBody).toContain("- status: `needs_info`");
   });
 
+  it("applies kind/area/status labels to the issue after intake classification", async () => {
+    const { octokit, addLabels } = octokitMock({ comments: [] });
+
+    await runPhase({
+      core: coreMock(),
+      octokit,
+      context: context(),
+      config: config(),
+      inputs: inputs("intake"),
+    });
+
+    expect(addLabels).toHaveBeenCalledWith(expect.objectContaining({
+      owner: "dailyshot-dev",
+      repo: "example",
+      issue_number: 20,
+      labels: expect.arrayContaining(["ai:triage", "kind:bug", "area:api"]),
+    }));
+  });
+
   it("marks PR finalization as maintainer-needed when dependency issue creation fails", async () => {
     const runtimeDir = fs.mkdtempSync(path.join(os.tmpdir(), "issue-automation-action-"));
     fs.writeFileSync(path.join(runtimeDir, "runner-result.json"), JSON.stringify({
@@ -85,6 +104,7 @@ function octokitMock(params: {
   octokit: Octokit;
   createIssue: ReturnType<typeof vi.fn>;
   updateComment: ReturnType<typeof vi.fn>;
+  addLabels: ReturnType<typeof vi.fn>;
 } {
   const createIssue = vi.fn();
   if (params.createIssueError) {
@@ -103,6 +123,7 @@ function octokitMock(params: {
   const listComments = vi.fn();
   const getIssue = vi.fn().mockResolvedValue({ data: issue() });
   const paginate = vi.fn().mockResolvedValue(params.comments);
+  const addLabels = vi.fn().mockResolvedValue({});
 
   return {
     octokit: {
@@ -115,11 +136,13 @@ function octokitMock(params: {
           updateComment,
           createComment,
           create: createIssue,
+          addLabels,
         },
       },
     } as unknown as Octokit,
     createIssue,
     updateComment,
+    addLabels,
   };
 }
 

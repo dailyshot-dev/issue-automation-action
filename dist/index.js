@@ -30158,6 +30158,7 @@ exports.loadIssue = loadIssue;
 exports.listIssueComments = listIssueComments;
 exports.upsertComment = upsertComment;
 exports.createComment = createComment;
+exports.addIssueLabels = addIssueLabels;
 /**
  * Resolves the target issue number from an issue event payload or manual workflow input.
  */
@@ -30231,6 +30232,21 @@ async function createComment(octokit, context, issue, body) {
         repo: context.repo.repo,
         issue_number: issue.number,
         body,
+    });
+}
+/**
+ * Adds labels to the parent issue. GitHub's add-labels API is additive, so repeated
+ * calls with the same label set are safe no-ops for labels already present.
+ */
+async function addIssueLabels(octokit, context, issue, labels) {
+    if (labels.length === 0) {
+        return;
+    }
+    await octokit.rest.issues.addLabels({
+        owner: context.repo.owner,
+        repo: context.repo.repo,
+        issue_number: issue.number,
+        labels,
     });
 }
 
@@ -30908,6 +30924,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.STATE_MARKER = void 0;
 exports.readAutomationState = readAutomationState;
 exports.upsertAutomationState = upsertAutomationState;
+exports.labelsForState = labelsForState;
 exports.defaultAutomationState = defaultAutomationState;
 exports.withDependencyKeys = withDependencyKeys;
 exports.statusFromRunnerAction = statusFromRunnerAction;
@@ -30930,6 +30947,31 @@ async function readAutomationState(octokit, context, issue) {
  */
 async function upsertAutomationState(params) {
     await (0, github_1.upsertComment)(params.octokit, params.context, params.issue, exports.STATE_MARKER, renderAutomationState(params.state, params.dependencyResults ?? []));
+    await (0, github_1.addIssueLabels)(params.octokit, params.context, params.issue, labelsForState(params.state));
+}
+/**
+ * Derives the GitHub labels that should be present for a given automation state.
+ * kind/area reflect classification, ai:triage marks AI-processed issues, and the
+ * needs:* label mirrors the status that currently blocks automated progress.
+ */
+function labelsForState(state) {
+    const labels = ["ai:triage"];
+    if (state.kind) {
+        labels.push(`kind:${state.kind}`);
+    }
+    if (state.area) {
+        labels.push(`area:${state.area}`);
+    }
+    if (state.maintainerNeeded) {
+        labels.push("needs:maintainer");
+    }
+    if (state.status === "needs_info") {
+        labels.push("needs:info");
+    }
+    if (state.status === "needs_dependency") {
+        labels.push("needs:dependency");
+    }
+    return labels;
 }
 /**
  * Creates a normalized state object for issues that have no state comment yet.

@@ -99,6 +99,21 @@ Composite action의 prepare 단계는 issue state를 읽고 실행 여부를 결
 
 Action은 parent issue의 `<!-- dailyshot-issue-automation-state` marker comment를 상태 저장소로 사용합니다. Comment body에는 hidden JSON block과 사람이 읽을 수 있는 summary가 함께 들어갑니다.
 
+## Issue Labels
+
+State comment를 갱신할 때마다(intake, finalize 단계 모두) 같은 정보를 issue label로도 반영합니다. `issues:write` 권한으로 `addLabels` API를 호출하며, 대상 label은 repository에 미리 존재해야 합니다.
+
+| Label | 조건 |
+| --- | --- |
+| `ai:triage` | 항상 적용 |
+| `kind:{kind}` | `kind`가 분류된 경우 |
+| `area:{area}` | `area`가 분류된 경우 |
+| `needs:maintainer` | `maintainerNeeded`가 true인 경우 |
+| `needs:info` | `status`가 `needs_info`인 경우 |
+| `needs:dependency` | `status`가 `needs_dependency`인 경우 |
+
+Label 적용은 additive(`addLabels`)이므로 상태가 바뀌어도 이전에 붙은 label은 자동으로 제거되지 않습니다.
+
 ## Runtime Files
 
 Composite action 실행 중 생성되는 `issue-context.md`, `runner-result.json` 같은 runtime 파일은 `$RUNNER_TEMP/issue-automation` 아래에 씁니다. Repository config에 `runtime.dir`이 있어도 GitHub Actions 실행 환경에서는 temp runtime directory가 우선됩니다. Runtime 파일은 repository working tree 밖에 있으므로 변경 감지와 `git add` 대상에 포함되지 않습니다.

@@ -105,3 +105,25 @@ export async function createComment(
     body,
   });
 }
+
+/**
+ * Adds labels to the parent issue. GitHub's add-labels API is additive, so repeated
+ * calls with the same label set are safe no-ops for labels already present.
+ */
+export async function addIssueLabels(
+  octokit: Octokit,
+  context: Context,
+  issue: Issue,
+  labels: string[],
+): Promise<void> {
+  if (labels.length === 0) {
+    return;
+  }
+
+  await octokit.rest.issues.addLabels({
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    issue_number: issue.number,
+    labels,
+  });
+}

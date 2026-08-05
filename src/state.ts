@@ -1,7 +1,7 @@
 import type { Context } from "@actions/github/lib/context";
 
 import type { Octokit } from "./github";
-import { listIssueComments, upsertComment } from "./github";
+import { addIssueLabels, listIssueComments, upsertComment } from "./github";
 import type { AutomationState, AutomationStatus, DependencyIssueResult, Issue } from "./types";
 
 export const STATE_MARKER = "<!-- dailyshot-issue-automation-state";
@@ -40,6 +40,34 @@ export async function upsertAutomationState(params: {
     STATE_MARKER,
     renderAutomationState(params.state, params.dependencyResults ?? []),
   );
+  await addIssueLabels(params.octokit, params.context, params.issue, labelsForState(params.state));
+}
+
+/**
+ * Derives the GitHub labels that should be present for a given automation state.
+ * kind/area reflect classification, ai:triage marks AI-processed issues, and the
+ * needs:* label mirrors the status that currently blocks automated progress.
+ */
+export function labelsForState(state: AutomationState): string[] {
+  const labels = ["ai:triage"];
+
+  if (state.kind) {
+    labels.push(`kind:${state.kind}`);
+  }
+  if (state.area) {
+    labels.push(`area:${state.area}`);
+  }
+  if (state.maintainerNeeded) {
+    labels.push("needs:maintainer");
+  }
+  if (state.status === "needs_info") {
+    labels.push("needs:info");
+  }
+  if (state.status === "needs_dependency") {
+    labels.push("needs:dependency");
+  }
+
+  return labels;
 }
 
 /**

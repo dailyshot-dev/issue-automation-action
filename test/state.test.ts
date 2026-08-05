@@ -1,7 +1,14 @@
 import type { Context } from "@actions/github/lib/context";
 import { describe, expect, it, vi } from "vitest";
 
-import { defaultAutomationState, readAutomationState, renderAutomationState, STATE_MARKER } from "../src/state";
+import {
+  defaultAutomationState,
+  labelsForState,
+  readAutomationState,
+  renderAutomationState,
+  STATE_MARKER,
+  upsertAutomationState,
+} from "../src/state";
 import type { Octokit } from "../src/github";
 import type { Issue } from "../src/types";
 
@@ -39,6 +46,50 @@ describe("state", () => {
     await expect(readAutomationState(octokit, context(), issue())).resolves.toEqual(state);
     const rendered = renderAutomationState(state);
     expect(rendered.indexOf("-->")).toBe(rendered.indexOf("\n-->") + 1);
+  });
+
+  it("derives kind/area/needs labels from automation state", () => {
+    expect(labelsForState(defaultAutomationState({
+      status: "needs_maintainer",
+      kind: "bug",
+      area: "data",
+      maintainerNeeded: true,
+    }))).toEqual(["ai:triage", "kind:bug", "area:data", "needs:maintainer"]);
+
+    expect(labelsForState(defaultAutomationState({ status: "needs_info" })))
+      .toEqual(["ai:triage", "needs:info"]);
+
+    expect(labelsForState(defaultAutomationState({ status: "triage" })))
+      .toEqual(["ai:triage"]);
+  });
+
+  it("adds derived labels to the issue when the state comment is upserted", async () => {
+    const addLabels = vi.fn().mockResolvedValue({});
+    const octokit = {
+      paginate: vi.fn().mockResolvedValue([]),
+      rest: {
+        issues: {
+          listComments: vi.fn(),
+          createComment: vi.fn().mockResolvedValue({}),
+          updateComment: vi.fn().mockResolvedValue({}),
+          addLabels,
+        },
+      },
+    } as unknown as Octokit;
+
+    await upsertAutomationState({
+      octokit,
+      context: context(),
+      issue: issue(),
+      state: defaultAutomationState({ status: "needs_dependency", kind: "feature", area: "data" }),
+    });
+
+    expect(addLabels).toHaveBeenCalledWith({
+      owner: "dailyshot-dev",
+      repo: "example",
+      issue_number: 1,
+      labels: ["ai:triage", "kind:feature", "area:data", "needs:dependency"],
+    });
   });
 });
 
